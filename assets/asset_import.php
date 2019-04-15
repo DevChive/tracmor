@@ -89,12 +89,15 @@
 		protected $arrOldItemArray;
 		protected $objUpdatedItemArray;
 		protected $blnError;
+		protected $intAssetLimit;
+		protected $intAssetCount;
+
 		// Depreciation variables
-		protected $intDepreciationClassKey;
+		//protected $intDepreciationClassKey;
 		protected $intPurchaseDateKey;
 		protected $intPurchaseCostKey;
 		protected $intDepreciationFlagKey;
-		protected $intDepreciationClassArray = array();
+		//protected $intDepreciationClassArray = array();
 
 		protected function Form_Create() {
 			if (QApplication::QueryString('intDownloadCsv')) {
@@ -107,7 +110,7 @@
 				header('Content-Type: text/csv');
 				header('Content-Disposition: csv; filename=skipped_records.csv');
 
-				$file = fopen(sprintf("%s%s/%s_skipped.csv", __DOCROOT__ . __SUBDIRECTORY__, __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "r");
+				$file = fopen(sprintf("%s/%s_skipped.csv", __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "r");
 				ob_end_clean();
 				while ($row = fgets($file, 1000)) {
 					print $row;
@@ -125,6 +128,10 @@
 			$intRoleId = QApplication::$objUserAccount->RoleId;
 			$this->blnError = true;
 			$objRoleEntityQtypeBuiltInAuthorization = RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId($intRoleId, EntityQtype::Asset, 2);
+
+			$this->intAssetLimit = QApplication::$TracmorSettings->AssetLimit;
+			$this->intAssetCount = Asset::CountActive();
+
 			// Check the user have edit permissions
 			if ($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag) {
 				$this->blnError = false;
@@ -323,6 +330,7 @@
 		// Next button click action
 		protected function btnNext_Click() {
 			$blnError = false;
+			$this->btnNext->Warning = '';
 			if ($this->intStep == 1) {
 				if ($this->chkHeaderRow->Checked) {
 					$this->blnHeaderRow = true;
@@ -367,7 +375,7 @@
 						// The uploaded file splits up in order to avoid out of memory
 						while ($row = fgets($file, 1000)) {
 							if ($j == 1) {
-								$strFilePath = sprintf('%s/%s_%s.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId'], $i);
+								$strFilePath = sprintf('%s/%s_%s.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId'], $i);
 								$this->strFilePathArray[] = $strFilePath;
 								$file_part = fopen($strFilePath, "w+");
 								if ($i == 1) {
@@ -386,15 +394,17 @@
 							}
 						}
 						$this->intTotalCount = ($i-1)*200 + $j-1;
-						if (QApplication::$TracmorSettings->AssetLimit != null && QApplication::$TracmorSettings->AssetLimit < ($this->intTotalCount + Asset::CountAll())) {
+						$this->intTotalCount -= ($this->chkHeaderRow->Checked) ? 1 : 0;
+
+						if ($this->lstImportAction->SelectedValue == 1 && $this->intAssetLimit != null && $this->intAssetLimit < ($this->intTotalCount + $this->intAssetCount)) {
 							$blnError = true;
-							$this->btnNext->Warning = $i . " " . $j . "Sorry that is too many assets. Your asset limit is = " . QApplication::$TracmorSettings->AssetLimit . ", this import has " . ($this->intTotalCount) . " assets, and you already have " . Asset::CountAll() . " assets in the database.";
+							$this->btnNext->Warning = sprintf('This import of %s assets would exceed your limit of %s assets.', $this->intTotalCount, $this->intAssetLimit);
 						} else {
 							$this->arrMapFields = array();
 							$this->arrTracmorField = array();
 							// Load first file
 							$this->FileCsvData->load($this->strFilePathArray[0]);
-							$file_skipped = fopen($this->strFilePath = sprintf('%s/%s_skipped.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "w+");
+							$file_skipped = fopen($this->strFilePath = sprintf('%s/%s_skipped.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "w+");
 							// Get Headers
 							if ($this->blnHeaderRow) {
 								$this->arrCsvHeader = $this->FileCsvData->getHeaders();
@@ -621,7 +631,7 @@
 			} else {
 				// Step 3 complete
 				set_time_limit(0);
-				$file_skipped = fopen($strFilePath = sprintf('%s/%s_skipped.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "a");
+				$file_skipped = fopen($strFilePath = sprintf('%s/%s_skipped.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "a");
 				if (!$this->blnImportEnd) {
 					// Asset
 					if ($this->intImportStep == 2) {
@@ -656,7 +666,7 @@
 									$arrAssetCustomField[substr($value, 6)] = $this->arrAssetCustomField[substr($value, 6)];
 								}
 							} elseif (QApplication::$TracmorSettings->DepreciationFlag == '1' && $value == "depreciate asset") {
-								$this->intDepreciationClassKey = $key;
+								$this->intDepreciationFlagKey = $key;
 							} elseif (QApplication::$TracmorSettings->DepreciationFlag == '1'&& $value == "purchase cost") {
 								$this->intPurchaseCostKey = $key;
 							} elseif (QApplication::$TracmorSettings->DepreciationFlag == '1'&& $value == "purchase date") {
@@ -681,11 +691,11 @@
 							$intLocationArray[$objLocation->LocationId] = strtolower($objLocation->ShortDescription);
 						}
 						// Depreciation
-						if(QApplication::$TracmorSettings->DepreciationFlag == '1'){
+						/*if(QApplication::$TracmorSettings->DepreciationFlag == '1'){
 							foreach (DepreciationClass::LoadAll() as $objDepreciationClass){
 								$this->intDepreciationClassArray[$objDepreciationClass->DepreciationClassId] = strtolower($objDepreciationClass->ShortDescription);
 							}
-						}
+						}*/
 
 						$strAssetArray = array();
 						// Load all assets
@@ -722,7 +732,7 @@
 										$intLocationId = false;
 									}
 								}
-								$strKeyArray = array_keys($intAssetModelArray, strtolower(trim($strRowArray[$intAssetModelDescriptionKey])));
+								$strKeyArray = array_keys($intAssetModelArray, (isset($strRowArray[$intAssetModelDescriptionKey])) ? strtolower(trim($strRowArray[$intAssetModelDescriptionKey])) : array());
 								if (count($strKeyArray)) {
 									$intAssetModelId = $strKeyArray[0];
 								} else {
@@ -802,47 +812,36 @@
 
 								// If depreciation is enabled within Application
 								// Any non-empty value sets to 1
-								// If this is checked and no depreciation class short description is not corresponding asset model default depreciation class, this will skip due to error
 								$blnDepreciationError = false;
 								$blnDepreciationFlag = null;
-								$intDepreciationClassId = null;
 								$intPurchaseCost = null;
 								$dttPurchaseDate = null;
-								if (QApplication::$TracmorSettings->DepreciationFlag == '1'	&& $this->intDepreciationClassKey) {
-									// print($this->intDepreciationClassKey)."__".$this->intPurchaseCostKey."__".$this->intPurchaseDateKey."__".strtolower(trim($strRowArray[$this->intDepreciationClassKey]))."<br />" ; if(!empty($strRowArray[$this->intDepreciationClassKey])){exit;}
-									$strKeyArray = array_keys($this->intDepreciationClassArray, strtolower(trim($strRowArray[$this->intDepreciationClassKey])));
-
-									if (count($strKeyArray)>0) {
-										$intDepreciationClassId = $strKeyArray[0];
-									} else {
-										$strKeyArray = array_keys($this->intDepreciationClassArray, strtolower(trim($this->txtMapDefaultValueArray[$this->intDepreciationClassKey]->Text)));
-										if (count($strKeyArray)) {
-											$intDepreciationClassId = $strKeyArray[0];
-										} else {
-											$intDepreciationClassId = false;
-										}
-									}
-
-									if ($intDepreciationClassId>0 && $intAssetModelId>0) {
-										if ($intDepreciationClassId != AssetModel::Load($intAssetModelId)->DepreciationClassId) {
-											$blnDepreciationError = true;
-										} elseif(isset($this->intPurchaseCostKey)&&isset($this->intPurchaseCostKey)) {
+								if (QApplication::$TracmorSettings->DepreciationFlag == '1'	&& $this->intDepreciationFlagKey && strlen(trim($strRowArray[$this->intDepreciationFlagKey]))) {
+									// Verify that the model has a depreciation class assigned
+									if ($intAssetModelId>0 && AssetModel::Load($intAssetModelId)->DepreciationClassId) {
+										// Verify that purchase date and purchase cost are set and valid
+										if(isset($this->intPurchaseCostKey)&&isset($this->intPurchaseDateKey)) {
 											// Check intVal for Purchase cost
 											$intPurchaseCost = (trim($strRowArray[$this->intPurchaseCostKey])) ? addslashes(trim($strRowArray[$this->intPurchaseCostKey])) : false;
 											if (!is_numeric($intPurchaseCost)) {
 												$blnDepreciationError = true;
 											}
-											$strPurchaseDate = (trim($strRowArray[$this->intPurchaseDateKey])) ? trim($strRowArray[$this->intPurchaseDateKey]) : false;
+											
+											$strPurchaseDate = (trim($strRowArray[$this->intPurchaseDateKey]));
+											$dttPurchaseDate = new DateTime();
+
 											// Check isDate for Purchase date
-											if (!($dttPurchaseDate = DateTime::createFromFormat('M d Y g:i A', $strPurchaseDate))) {
+											if (!strlen($strPurchaseDate) || !($dttPurchaseDate = $dttPurchaseDate->setTimestamp(strtotime($strPurchaseDate)))) {
 												$blnDepreciationError = true;
 											} else {
-										 		$dttPurchaseDate = $dttPurchaseDate->format('Y-m-d h:i:s');// print $intDepreciationClassId."__".$intPurchaseCost."__".$dttPurchaseDate; exit;
+										 		$dttPurchaseDate = $dttPurchaseDate->format('Y-m-d');
 											}
 											$blnDepreciationFlag = 1;
 										} else {
 											$blnDepreciationError = true;
 										}
+									} else {
+										$blnDepreciationError = true;
 									}
 								}
 	                			$objAsset = false;
@@ -852,6 +851,7 @@
 									$strAssetCode =  null;
 									$this->intSkippedRecordCount++;
 									$this->PutSkippedRecordInFile($file_skipped, $strRowArray);
+									continue;
 								} else {
 									if ($this->lstImportAction->SelectedValue == 2) {
 										$intItemId = intval(trim($strRowArray[$this->intItemIdKey]));
@@ -912,9 +912,12 @@
 										}
 									}
 
-									if (!$blnCheckCFVError) {
+									// Check if asset limit has been reached
+									$blnAssetLimitError = ($this->intAssetLimit != null && ($this->intAssetCount + count($objNewAssetArray)) >= $this->intAssetLimit);
+
+									if (!$blnCheckCFVError && !$blnAssetLimitError) {
 										$strAssetArray[] = stripslashes($strAssetCode);
-										$this->strAssetValuesArray[] = sprintf("('%s', '%s', '%s', %s, %s, '%s', NOW(), %s, %s, '%s')",
+										$this->strAssetValuesArray[] = sprintf("('%s', '%s', '%s', %s, %s, '%s', NOW(), %s, %s, %s)",
 											$strAssetCode,
 											$intLocationId,
 											$intAssetModelId,
@@ -940,6 +943,10 @@
 										}
 									} else {
 										$this->intSkippedRecordCount++;
+										
+										if ($blnAssetLimitError)
+											$strRowArray[] = sprintf('Asset limit of %s reached', $this->intAssetLimit);
+
 										$this->PutSkippedRecordInFile($file_skipped, $strRowArray);
 										$strAssetCode = null;
 									}
@@ -949,12 +956,12 @@
 									$strUpdateFieldArray[] = sprintf("`asset_code`='%s'", $strAssetCode);
 									$strUpdateFieldArray[] = sprintf("`asset_model_id`='%s'", $intAssetModelId);
 									$strUpdateFieldArray[] = sprintf("`parent_asset_id`=%s", QApplication::$Database[1]->SqlVariable($intParentAssetId));
-									$strUpdateFieldArray[] = sprintf("`linked_flag`='%s'", ($blnLinked) ? 1 : 0);
+									$strUpdateFieldArray[] = sprintf("`linked_flag`=b'%s'", ($blnLinked) ? 1 : 0);
 									$strUpdateFieldArray[] = sprintf("`modified_by`='%s'", $_SESSION['intUserAccountId']);
 									// Depreciation Fields
 									$strUpdateFieldArray[] = sprintf("`depreciation_flag`=%s", ($blnDepreciationFlag)?$blnDepreciationFlag:"NULL");
 									$strUpdateFieldArray[] = sprintf("`purchase_cost`=%s", ($intPurchaseCost)?$intPurchaseCost:"NULL");
-									$strUpdateFieldArray[] = sprintf("`purchase_date`=%s", ($dttPurchaseDate)?$dttPurchaseDate:"NULL");
+									$strUpdateFieldArray[] = sprintf("`purchase_date`=%s", ($dttPurchaseDate)?"'$dttPurchaseDate'":"NULL");
 
 									$blnCheckCFVError = false;
 									foreach ($arrAssetCustomField as $objCustomField) {
@@ -1228,7 +1235,7 @@
 			$lstMapHeader->AddItem("Locked To Parent", "Locked To Parent", ($strName == 'locked to parent') ? true : false, $strAssetGroup);
 			// Add Depreciation fields if enabled
 			if (QApplication::$TracmorSettings->DepreciationFlag == '1') {
-				$lstMapHeader->AddItem("Depreciate Asset", "Depreciate Asset", ($strName == "depreciation class")? true:false,$strAssetGroup);
+				$lstMapHeader->AddItem("Depreciate Asset", "Depreciate Asset", ($strName == "depreciate asset")? true:false,$strAssetGroup);
 				$lstMapHeader->AddItem("Purchase Date", "Purchase Date", ($strName == "purchase date")? true:false,$strAssetGroup);
 				$lstMapHeader->AddItem("Purchase Cost", "Purchase Cost", ($strName == "purchase cost")? true:false,$strAssetGroup);
 			}

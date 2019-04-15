@@ -21,7 +21,7 @@ if ($_POST) {
   	$arrLocationInventoryCodeQuantity = array_unique(explode('!',$_POST['result']));
   	foreach ($arrLocationInventoryCodeQuantity as $strLocationInventoryCodeQuantity) {
       if ($strLocationInventoryCodeQuantity) {
-        list($strLocation, $strInventoryCodeQuantity) = split('[:]',$strLocationInventoryCodeQuantity,2);
+        list($strLocation, $strInventoryCodeQuantity) = explode(':',$strLocationInventoryCodeQuantity,2);
         // Location must be exist
       	$objDestinationLocation = Location::LoadByShortDescription($strLocation);
       	if (!$objDestinationLocation) {
@@ -33,7 +33,7 @@ if ($_POST) {
         }
         $arrInventoryCodeQuantity = array_unique(explode('#',$strInventoryCodeQuantity));
         foreach ($arrInventoryCodeQuantity as $strInventoryCodeQuantity) {
-       	  list($strInventoryModelCode, $intQuantity) = split('[|]',$strInventoryCodeQuantity,2);
+       	  list($strInventoryModelCode, $intQuantity) = explode('|',$strInventoryCodeQuantity,2);
         	$blnSourceLocationError = true;
        	  if ($strInventoryModelCode && $intQuantity) {
           	// Begin error checking
@@ -108,32 +108,37 @@ if ($_POST) {
   	     	}
   	    }
       }
-  	  try {
-  	    // Get an instance of the database
-				$objDatabase = QApplication::$Database[1];
-				// Begin a MySQL Transaction to be either committed or rolled back
-				$objDatabase->TransactionBegin();
-				
-				$objAudit = new Audit();
-        $objAudit->EntityQtypeId = 2; // Inventory
-        $objAudit->Save();
-        
-    	  foreach ($objAuditScanArray as $objAuditScan) {
-    	  	$objAuditScan->AuditId = $objAudit->AuditId;
-    	  	$objAuditScan->Save();
+  	  
+      if ($objAuditScanArray) {
+        try {
+    	    // Get an instance of the database
+  				$objDatabase = QApplication::$Database[1];
+  				// Begin a MySQL Transaction to be either committed or rolled back
+  				$objDatabase->TransactionBegin();
+  				
+  				$objAudit = new Audit();
+          $objAudit->EntityQtypeId = 2; // Inventory
+          $objAudit->Save();
+          
+      	  foreach ($objAuditScanArray as $objAuditScan) {
+      	  	$objAuditScan->AuditId = $objAudit->AuditId;
+      	  	$objAuditScan->Save();
+      	  }
+      	  
+      	  $objDatabase->TransactionCommit();
+      	  
+      	  $strWarning .= "Your transaction has successfully completed<br /><a href='index.php'>Main Menu</a> | <a href='inventory_menu.php'>Inventory Menu</a><br />";
+      		//Remove that flag when transaction is compelete or exists some errors
+          unset($_SESSION['intUserAccountId']);
+          $blnTransactionComplete = true;
     	  }
-    	  
-    	  $objDatabase->TransactionCommit();
-    	  
-    	  $strWarning .= "Your transaction has successfully completed<br /><a href='index.php'>Main Menu</a> | <a href='inventory_menu.php'>Inventory Menu</a><br />";
-    		//Remove that flag when transaction is compelete or exists some errors
-        unset($_SESSION['intUserAccountId']);
-        $blnTransactionComplete = true;
-  	  }
-  	  catch (QExtendedOptimisticLockingException $objExc) {
-  	    // Rollback the database
-  	    $objDatabase->TransactionRollback();
-  	  }
+    	  catch (QExtendedOptimisticLockingException $objExc) {
+    	    // Rollback the database
+    	    $objDatabase->TransactionRollback();
+    	  }
+      } else {
+        $strWarning = 'No locations have been added. You must click Apply after each location audit.<br />';
+      }
   	}
   }
   elseif ($_POST['method'] == 'next_location') {
@@ -154,7 +159,7 @@ if ($_POST) {
   	  if ($_POST['main_result'] && strstr($_POST['main_result'],$_POST['location'])) {
   	    $arrLocationInventoryQuantity = explode('!',$_POST['main_result']);
         foreach ($arrLocationInventoryQuantity as $strLocationInventoryQuantity) {
-          list($strLocation, $strInventory) = split('[:]',$strLocationInventoryQuantity,2);
+          list($strLocation, $strInventory) = explode(':',$strLocationInventoryQuantity,2);
           if ($strInventory && strstr($strLocation,$_POST['location'])) {
             $blnError = true;
             $strWarning .= $_POST['location']." - That location has already been added.<br />";
@@ -170,7 +175,7 @@ if ($_POST) {
     
     foreach ($arrInventoryCodeQuantity as $strInventoryCodeQuantity) {
       $blnErrorCurrentInventory = false;
-   		list($strInventoryModelCode, $intQuantity) = split('[|]',$strInventoryCodeQuantity,2);
+   		list($strInventoryModelCode, $intQuantity) = explode('|',$strInventoryCodeQuantity,2);
      	if ($strInventoryModelCode && $intQuantity) {
      	  // Begin error checking
         // Load the inventory model object based on the inventory_model_code submitted
@@ -202,7 +207,7 @@ if ($_POST) {
     }
   	
     if (!$blnError) {
-      $strWarning .= $_POST['location']." - Location added. Please provide another location or click 'Done'.<br />";
+      $strWarning .= $_POST['location']." - Location added. Please provide another location or click 'Complete Audit'.<br />";
       if ($_POST['main_result']) {
         $strCheckedLocationInventory .= "!".$_POST['location'].":".$_POST['result'];
       }
@@ -241,12 +246,12 @@ if (!isset($blnTransactionComplete) ||  !$blnTransactionComplete) {
   <input type="hidden" name="result" value="">
   <input type="hidden" name="main_result" value="<?php echo $strCheckedLocationInventory; ?>">
   <input type="hidden" name="location" value="">
-  <input type="submit" value="Next Location">
+  <input type="submit" value="Apply">
   </form>
   <form method="post" name="main_form" onsubmit="javascript:return AssetsAuditDone();">
   <input type="hidden" name="method" value="complete_transaction">
   <input type="hidden" name="result" value="<?php echo $strCheckedLocationInventory; ?>">
-  <input type="submit" value="Done">
+  <input type="submit" value="Complete Audit" >
   </form>
   <div id="output"></div>
 

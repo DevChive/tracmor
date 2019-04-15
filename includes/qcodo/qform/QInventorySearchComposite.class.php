@@ -128,7 +128,7 @@ class QInventorySearchComposite extends QControl {
      	}
     }
 
-    $this->dtgInventoryModel->SortColumnIndex = 2;
+    $this->dtgInventoryModel->SortColumnIndex = ($blnShowCheckboxes) ? 3 : 2;
     $this->dtgInventoryModel->SortDirection = 0;
 
     $objStyle = $this->dtgInventoryModel->RowStyle;
@@ -402,7 +402,7 @@ class QInventorySearchComposite extends QControl {
   		$this->blnAdvanced = false;
   		$this->lblAdvanced->Text = 'Advanced Search';
 
-  		$this->ctlAdvanced->ClearControls();
+  		//$this->ctlAdvanced->ClearControls();
 
   	}
   	else {

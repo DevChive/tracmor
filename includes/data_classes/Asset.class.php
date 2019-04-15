@@ -73,7 +73,7 @@
             }
             else{
             $fltBookValue =	$this->PurchaseCost - $this->getCurrentDepreciation();
-            return money_format('%i' ,round($fltBookValue,2));
+            return QApplication::MoneyFormat(round($fltBookValue,2));
             }
         }
 
@@ -82,7 +82,7 @@
                 return null;
             }
             else{
-                return money_format('%i' ,round($this->PurchaseCost,2));
+                return QApplication::MoneyFormat(round($this->PurchaseCost,2));
             }
         }
 
@@ -108,6 +108,29 @@
 			 {
 				 return $this->AssetModel->DepreciationClass;
 			 }
+		}
+
+		public function GetLocation() {
+			if ($this->blnCheckedOutFlag) {
+				$arrObjects = $this->GetLastTransactionCheckoutObjectArray();
+				$objAccount = $arrObjects['objAccount'];
+				$objAssetTransactionCheckout = $arrObjects['objAssetTransactionCheckout'];
+
+				if (!$objAssetTransactionCheckout) {
+					$strToReturn = 'Checked Out by ' . $objAccount->__toString();
+				} else {
+					$strToReturn = 'Checked Out to ';
+					if ($objAssetTransactionCheckout->ToContactId) {
+						$strToReturn .= $objAssetTransactionCheckout->ToContact->__toString();
+					} else {
+						$strToReturn .= $objAssetTransactionCheckout->ToUser->__toString();
+					}
+
+					return $strToReturn;
+				}
+			} else {
+				return $this->Location->__toString();
+			}
 		}
 
 		/**
@@ -230,7 +253,7 @@
       }
 		}
 
-        public function LoadByAssetIdWithCustomFields($strAssetId) {
+        public static function LoadByAssetIdWithCustomFields($strAssetId) {
             Asset::QueryHelper($objDatabase);
             $arrCustomFieldSql = CustomField::GenerateHelperSql(EntityQtype::Asset);
 
@@ -1139,7 +1162,7 @@
 		 * @param int $intParentAssetId AssetId of the parent asset to load linked assets
 		 * @return mixed
 		 */
-		public function LoadChildLinkedArrayByParentAssetId($intParentAssetId) {
+		public static function LoadChildLinkedArrayByParentAssetId($intParentAssetId) {
 			$objLinkedAssetArray = array();
 			
 			Asset::QueryHelper($objDatabase);
@@ -1182,7 +1205,7 @@
 			}
 		}
 
-        public function LoadChildLinkedArrayByParentAssetIdWithNoCustomFields($intParentAssetId) {
+        public static function LoadChildLinkedArrayByParentAssetIdWithNoCustomFields($intParentAssetId) {
             $objLinkedAssetArray = array();
 
             Asset::QueryHelper($objDatabase);
@@ -1226,7 +1249,7 @@
 		 *
 		 * @param string $strAssetCode
 		 */
-		public function ResetParentAssetIdToNullByAssetId($intAssetId) {
+		public static function ResetParentAssetIdToNullByAssetId($intAssetId) {
 		  $strQuery = sprintf("
 				UPDATE
 					`asset` AS `asset`
@@ -1246,7 +1269,7 @@
 		 *
 		 * @param string $intAssetId
 		 */
-		public function DeleteAuditScanByAssetId($intAssetId) {
+		public static function DeleteAuditScanByAssetId($intAssetId) {
 		  $strQuery = sprintf("
 				DELETE
 				  `audit_scan`.*

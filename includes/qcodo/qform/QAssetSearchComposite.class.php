@@ -143,7 +143,7 @@ class QAssetSearchComposite extends QControl {
     }
     $this->dtgAsset->AddColumn(new QDataGridColumnExt('Category', '<?= $_ITEM->AssetModel->Category->__toString() ?>', 'SortByCommand="asset__asset_model_id__category_id__short_description ASC"', 'ReverseSortByCommand="asset__asset_model_id__category_id__short_description DESC"', 'CssClass="dtg_column"'));
     $this->dtgAsset->AddColumn(new QDataGridColumnExt('Manufacturer', '<?= $_ITEM->AssetModel->Manufacturer->__toString() ?>', 'SortByCommand="asset__asset_model_id__manufacturer_id__short_description ASC"', 'ReverseSortByCommand="asset__asset_model_id__manufacturer_id__short_description DESC"', 'CssClass="dtg_column"'));
-    $this->dtgAsset->AddColumn(new QDataGridColumnExt('Location', '<?= $_ITEM->Location->__toString() ?>', 'SortByCommand="asset__location_id__short_description ASC"', 'ReverseSortByCommand="asset__location_id__short_description DESC"', 'CssClass="dtg_column"'));
+    $this->dtgAsset->AddColumn(new QDataGridColumnExt('Location', '<?= $_ITEM->GetLocation() ?>', 'SortByCommand="asset__location_id__short_description ASC"', 'ReverseSortByCommand="asset__location_id__short_description DESC"', 'CssClass="dtg_column"'));
     $this->dtgAsset->AddColumn(new QDataGridColumnExt('Model Number', '<?= $_ITEM->AssetModel->AssetModelCode ?>', 'SortByCommand="asset__asset_model_id__asset_model_code"', 'ReverseSortByCommand="asset__asset_model_id__asset_model_code DESC"', 'CssClass="dtg_column"', 'Display="false"'));
     $this->dtgAsset->AddColumn(new QDataGridColumnExt('Parent Asset Tag', '<?= $_CONTROL->objParentControl->ParentAsset__toString($_ITEM) ?>', 'SortByCommand="asset__parent_asset_id__asset_code ASC"', 'ReverseSortByCommand="asset__parent_asset_id__asset_code DESC"', 'CssClass="dtg_column"', 'Display="false"', 'HtmlEntities="false"'));
     $this->dtgAsset->AddColumn(new QDataGridColumnExt('Check In Due', '<?= $_ITEM->CheckoutDueDate() ?>', 'CssClass="dtg_column"', 'Display="false"', 'HtmlEntities="false"'));
@@ -172,7 +172,7 @@ class QAssetSearchComposite extends QControl {
     }
 
     // Column to originally sort by (Asset Model)
-    $this->dtgAsset->SortColumnIndex = 2;
+    $this->dtgAsset->SortColumnIndex = ($blnShowCheckboxes) ? 4 : 3;
     $this->dtgAsset->SortDirection = 0;
 
     $objStyle = $this->dtgAsset->RowStyle;
@@ -482,7 +482,7 @@ class QAssetSearchComposite extends QControl {
 	  			$field['value'] = null;
 	  		}
 	  	}
-	  	$this->dtgAsset->SortColumnIndex = 2;
+	  	$this->dtgAsset->SortColumnIndex = 4;
 	  	$this->dtgAsset->SortDirection = 0;
 	  	$this->blnSearch = false;
 	  	if ($this->blnUseAjax) {
@@ -497,7 +497,7 @@ class QAssetSearchComposite extends QControl {
   		$this->blnAdvanced = false;
   		$this->lblAdvanced->Text = 'Advanced Search';
 
-  		$this->ctlAdvanced->ClearControls();
+  		//$this->ctlAdvanced->ClearControls();
 
   	}
   	else {

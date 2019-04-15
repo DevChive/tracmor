@@ -717,16 +717,13 @@ class QAssetEditComposite extends QControl {
 
 		QApplication::AuthorizeControl($this->objAsset, $this->btnArchive, 2);
 		if ($this->btnArchive->Visible) {
-			// Check if they have the ability to create a new Archivement
-			QApplication::AuthorizeControl(null, $this->btnArchive, 2, 5);
 			if ($this->objAsset->ArchivedFlag) {
-  		  $this->btnArchive->Text = 'Unarchive';
-  		  RoleTransactionTypeAuthorization::AuthorizeControlByRoleTransactionType($this->objAsset, $this->btnArchive, 11);
-  		}
-  		else {
-  		  $this->btnArchive->Text = 'Archive';
-  		  RoleTransactionTypeAuthorization::AuthorizeControlByRoleTransactionType($this->objAsset, $this->btnArchive, 10);
-  		}
+				$this->btnArchive->Text = 'Unarchive';
+			  	RoleTransactionTypeAuthorization::AuthorizeControlByRoleTransactionType($this->objAsset, $this->btnArchive, 11);
+			} else {
+				$this->btnArchive->Text = 'Archive';
+				RoleTransactionTypeAuthorization::AuthorizeControlByRoleTransactionType($this->objAsset, $this->btnArchive, 10);
+			}
 		}
 	}
 
@@ -757,7 +754,7 @@ class QAssetEditComposite extends QControl {
 		if ($this->blnEditMode
 			&& $this->objAsset->DepreciationFlag){
 			$this->chkAssetDepreciation->Checked = true;
-			$this->lblPurchaseCost->Text = money_format('%i',$this->objAsset->PurchaseCost);
+			$this->lblPurchaseCost->Text = QApplication::MoneyFormat($this->objAsset->PurchaseCost);
 			$this->lblPurchaseDate->Text = $this->objAsset->PurchaseDate->__toString();
 		}
 		else{
@@ -840,7 +837,7 @@ class QAssetEditComposite extends QControl {
 			$this->txtPurchaseCost->AddAction(new QChangeEvent(), new QAjaxControlAction($this, 'txtPurchaseCost_Change'));
 		}
 		if ($this->blnEditMode){
-			$this->txtPurchaseCost->Text = money_format('%i',$this->objAsset->PurchaseCost);
+			$this->txtPurchaseCost->Text = QApplication::MoneyFormat($this->objAsset->PurchaseCost);
 		}
 	}
 	public function txtPurchaseCost_Change($control){
@@ -1237,7 +1234,7 @@ class QAssetEditComposite extends QControl {
 					$this->chkAssetDepreciation->Checked = true;
 					// Return original values to recalculate bookvalue
 					$this->lstAssetModel->SelectedValue = $this->objAsset->AssetModelId;
-					$this->txtPurchaseCost->Text = money_format('%i',$this->objAsset->PurchaseCost);
+					$this->txtPurchaseCost->Text = QApplication::MoneyFormat($this->objAsset->PurchaseCost);
 					$this->calPurchaseDate->DateTime = $this->objAsset->PurchaseDate;
 					$this->lblBookValue->Display = true;
 					$this->lblBookValue_Update();
@@ -1297,7 +1294,7 @@ class QAssetEditComposite extends QControl {
 
 	// Print Asset Tag button Click Action
 	public function btnPrintAssetTag_Click($strFormId, $strControlId, $strParameter) {
-		$strImagePath = sprintf('../includes/php/barcode.php?code=%s&encoding=128&scale=%s&total_y=%s', $this->objAsset->AssetCode, QApplication::$TracmorSettings->AssetTagScale, QApplication::$TracmorSettings->AssetTagHeight);
+		$strImagePath = sprintf('../includes/php/barcode.php?code=%s', $this->objAsset->AssetCode);
 		QApplication::ExecuteJavaScript('var pwin = window.open("", "Image");');
 		QApplication::ExecuteJavaScript(sprintf('if (pwin) { pwin.document.writeln("<html><head><style type=\"text/css\">body { margin:0; padding:0; } </style></head><body><img src=\"%s\" /></body></html>");pwin.document.close();pwin.focus();pwin.print(); }', $strImagePath));
 	}
@@ -1631,7 +1628,7 @@ class QAssetEditComposite extends QControl {
 			$this->chkAssetDepreciation->Enabled = false;
 			$this->hideAssetDepreciationFields();
 			if($this->objAsset->DepreciationFlag == 1){
-				$this->lblPurchaseCost->Text = money_format('%i',$this->objAsset->PurchaseCost);
+				$this->lblPurchaseCost->Text = QApplication::MoneyFormat($this->objAsset->PurchaseCost);
 				$this->lblPurchaseDate->Text = $this->objAsset->PurchaseDate->__toString();
 				$this->lblPurchaseCost->Display = true;
 				$this->lblPurchaseDate->Display = true;
@@ -1718,7 +1715,9 @@ class QAssetEditComposite extends QControl {
   public function reloadCustomFields($intAssetModelId){
     // Load all custom fields and their values into an array objCustomFieldArray->CustomFieldSelection->CustomFieldValue
           $this->objAsset->objCustomFieldArray = CustomField::LoadObjCustomFieldArray(1, $this->blnEditMode, $this->objAsset->AssetId, false, $intAssetModelId);
-
+            foreach($this->arrCustomFields as $objCustomField){
+                $objCustomField['input']->Form->RemoveControl($objCustomField['input']->ControlId);
+            }
     		// Create the Custom Field Controls - labels and inputs (text or list) for each
     		$this->arrCustomFields = CustomField::CustomFieldControlsCreate($this->objAsset->objCustomFieldArray, $this->blnEditMode, $this, true, true, false);
 	        // Add TabIndex for all txt custom fields
@@ -1826,7 +1825,7 @@ class QAssetEditComposite extends QControl {
 			$fltBookValue =	$this->txtPurchaseCost->Text - ($this->txtPurchaseCost->Text * ($interval/$life));
 			// prevent negative results
 			$fltBookValue = $fltBookValue < 0 ?  0 : $fltBookValue;
-			$this->lblBookValue->Text = money_format('%i', $fltBookValue);
+			$this->lblBookValue->Text = QApplication::MoneyFormat( $fltBookValue);
 		}
         else{
 			$this->lblBookValue->Text = '...';

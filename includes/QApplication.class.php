@@ -9,6 +9,8 @@
 	 * This Application class should extend from the ApplicationBase class in
 	 * the framework.
 	 */
+	use Zend\Barcode\Barcode;
+
 	abstract class QApplication extends QApplicationBase {
 		/**
 		 * This is called by the PHP5 Autoloader.  This method overrides the
@@ -23,6 +25,11 @@
 				if (file_exists($strFilePath = sprintf('%s/%s.class.php', __DATA_CLASSES__, $strClassName))) {
 					require($strFilePath);
 					return true;
+				} else if (substr($strClassName, 0, 4) == 'Zend') {
+					if (file_exists($strFilePath = sprintf('%s/%s.php', __INCLUDES__, str_replace('\\', '/', $strClassName)))) {
+						require($strFilePath);
+						return true;
+					}
 				}
 			}
 			return false;			
@@ -74,6 +81,8 @@
 		public static $objUserAccount;
 		// RoleModule object based on the user that is logged in and the module they are accessing
 		public static $objRoleModule;
+		// Password Hasher
+		public static $objPasswordHasher;
 
 		////////////////////////////
 		// Additional Static Methods
@@ -85,7 +94,13 @@
 			
 			QApplication::$TracmorSettings = new TracmorSettings();
 		}
-		
+
+		// Initialize the Password Hasher
+		public static function InitializePasswordHasher() {
+			if (!QApplication::$objPasswordHasher)
+				QApplication::$objPasswordHasher = new PasswordHash(8, PORTABLE_PASSWORDS);
+		}
+
 		// Assign the UserAccountId to a session variable
 		public static function Login(UserAccount $objUserAccount) {
 			// Assign the UserAccountId as a session variable
@@ -98,15 +113,11 @@
 			QFileFormStateHandler::DeleteFormStateForSession();
 			unset($_SESSION['intUserAccountId']);
 			session_destroy();
-			QApplication::Redirect('../login.php');
+			QApplication::Redirect(__SUBDIRECTORY__ . '/login.php');
 		}
 		
 		// Authenticate a certain module based on the module and the Role of the logged in user
 		public static function Authenticate($intModuleId = null) {
-			
-			// If logins have been disabled for this site, log the user out
-			if (QApplication::$TracmorSettings->DisableLogins)
-				QApplication::Logout();
 
 			if (array_key_exists('intUserAccountId', $_SESSION)) {
 				$objUserAccount = UserAccount::Load($_SESSION['intUserAccountId']);
@@ -119,7 +130,7 @@
 						$objRoleModule = RoleModule::LoadByRoleIdModuleId($objUserAccount->RoleId, $intModuleId);
 						// If they do not have access to this module
 						if (!$objRoleModule->AccessFlag) {
-							QApplication::Redirect('../common/trespass.php');
+							QApplication::Redirect(__SUBDIRECTORY__ . '/common/trespass.php');
 						}
 						// Assign the RoleModule to QApplication
 						else {
@@ -129,15 +140,15 @@
 					// ModuleId is null for the admin panel
 					// Check if the user is an admin
 					elseif (!$objUserAccount->AdminFlag) {
-						QApplication::Redirect('../common/trespass.php');
+						QApplication::Redirect(__SUBDIRECTORY__ . '/common/trespass.php');
 					}
 				}
 				else {
-					QApplication::Redirect('../common/trespass.php');
+					QApplication::Redirect(__SUBDIRECTORY__ . '/common/trespass.php');
 				}
 			}
 			else {
-				QApplication::Redirect('../login.php?strReferer=' . urlencode(QApplication::$RequestUri));
+				QApplication::Redirect(__SUBDIRECTORY__ . '/login.php?strReferer=' . urlencode(QApplication::$RequestUri));
 			}
 		}
 		
@@ -180,7 +191,7 @@
 				$objRoleModuleAuthorization = RoleModuleAuthorization::LoadByRoleModuleIdAuthorizationId(QApplication::$objRoleModule->RoleModuleId, 1);
 				// If the user doesn't have an 'All' Authorization Level, or an 'Owner' Authorization Level and owns this entity, redirect
 				if ($objRoleModuleAuthorization->AuthorizationLevelId != 1 && !($objRoleModuleAuthorization->AuthorizationLevelId == 2 && $objEntity->CreatedBy == QApplication::$objUserAccount->UserAccountId)) {
-					QApplication::Redirect('../common/trespass.php');
+					QApplication::Redirect(__SUBDIRECTORY__ . '/common/trespass.php');
 				}
 			}
 			// If it is a new entity, check that the user has 'Edit' Authorization
@@ -188,9 +199,22 @@
 				$objRoleModuleAuthorization = RoleModuleAuthorization::LoadByRoleModuleIdAuthorizationId(QApplication::$objRoleModule->RoleModuleId, 2);
 				// The user must have either an 'All' or 'Owner' Authorization Level to create a new entity
 				if (!$objRoleModuleAuthorization->AuthorizationLevelId == 1 && !$objRoleModuleAuthorization->AuthorizationLevelId == 2) {
-					QApplication::Redirect('../common/trespass.php');
+					QApplication::Redirect(__SUBDIRECTORY__ . '/common/trespass.php');
 				}
 			}
+		}
+
+		/**
+		 * Authorizes an entity type and returns a boolean value
+		 * 
+		 * @param integer $intAuthorizationId
+		 * @return bool $blnAuthorized
+		 */
+		public static function AuthorizeEntityTypeBoolean($intAuthorizationId) {
+			$objRoleModuleAuthorization = RoleModuleAuthorization::LoadByRoleModuleIdAuthorizationId(QApplication::$objRoleModule->RoleModuleId, $intAuthorizationId);
+
+			// Authorization Level: 1 = All, 2 = Owner
+			return ($objRoleModuleAuthorization->AuthorizationLevelId == 1 || $objRoleModuleAuthorization->AuthorizationLevelId == 2);
 		}
 		
 		/**
@@ -256,10 +280,10 @@
 		public static function BooleanImage($blnValue = true) {
 					
 			if ($blnValue) {
-				$strToReturn = sprintf('<img src="%s">', '../images/icons/check.png');
+				$strToReturn = sprintf('<img src="%s/icons/check.png">', __IMAGE_ASSETS__);
 			}
 			else {
-				$strToReturn = sprintf('<img src="%s">', '../images/icons/x.png');
+				$strToReturn = sprintf('<img src="%s/icons/x.png">', __IMAGE_ASSETS__);
 			}
 			
 			return $strToReturn;
@@ -294,6 +318,66 @@
 			} else {
 				return false;
 			}
+		}
+
+		/**
+		 * This draws and optionally renders a barcode image
+		 *
+		 * @param string $strText The text to represent as a barcode
+		 * @param bool $blnRender 
+		 * @return image 
+		 */
+		public static function DrawBarcode($strText, $blnRender = false) {
+
+			$arrBarcodeOptions = array(
+				'text' => $strText,
+				'font' => __INCLUDES__ . '/fonts/VeraMono.ttf'
+			);
+
+			// No required renderer options
+			$arrRendererOptions = array();
+
+			if (!$blnRender) {
+				// Draw the barcode and return the resource
+				$imgResource = Barcode::draw(
+					'code128', 'image', $arrBarcodeOptions, $arrRendererOptions
+				);
+
+				return $imgResource;
+			} else {
+				// Draw the barcode in a new image,
+				// send the headers and the image
+				Barcode::render(
+					'code128', 'image', $arrBarcodeOptions, $arrRendererOptions
+				);
+			}
+		}
+
+		public static function MoneyFormat($intNumber) {
+			return number_format($intNumber, 2, '.', '');
+		}
+
+		public static function SendEmailUsingTemplate($strTemplateName, $strSubject, $strFrom, $strTo, $strTokenArray) {
+			$strContent = file_get_contents(__INCLUDES__ . '/email_templates/' . $strTemplateName . '.txt');
+			foreach ($strTokenArray as $strKey => $strValue) {
+				$strContent = str_replace('%' . $strKey . '%', $strValue, $strContent);
+			}
+			$objEmail = new EmailQueue();
+			$objEmail->ToAddress = $strTo;
+			$objEmail->FromAddress = $strFrom;
+			$objEmail->Subject = $strSubject;
+			$objEmail->Body = $strContent;
+			$objEmail->Save();
+		}
+
+		public static function HashPassword($strPassword) {
+			QApplication::InitializePasswordHasher();
+			return QApplication::$objPasswordHasher->HashPassword($strPassword);
+		}
+
+		public static function CheckPassword($strPassword, $strHash) {
+			QApplication::InitializePasswordHasher();
+			return QApplication::$objPasswordHasher->CheckPassword($strPassword, $strHash);
 		}
 	}
 ?>

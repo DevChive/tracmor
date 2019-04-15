@@ -1,6 +1,6 @@
 SET FOREIGN_KEY_CHECKS = 0;
 
-INSERT INTO `_version` (`version`) VALUES ('0.4.0');
+INSERT INTO `_version` (`version`) VALUES ('0.4.2');
 
 INSERT INTO `datagrid` (`short_description`) VALUES
 	('asset_list'),
@@ -499,9 +499,9 @@ INSERT INTO `admin_setting` (`setting_id`,`short_description`,`value`) VALUES
 	(24,'depreciation_flag','1');
 
 INSERT INTO `shortcut` (`module_id`, `authorization_id`, `transaction_type_id`, `short_description`, `link`, `image_path`, `entity_qtype_id`, `create_flag`) VALUES
-        (2,2,NULL,'Create Asset Model','../assets/asset_model_edit.php','asset_model_create.png',4,1),
-        (2,1,NULL,'Asset Models','../assets/asset_model_list.php','asset_model.png',4,0),
-        (2,2,NULL,'Import Asset Models','../assets/asset_model_import.php','asset_model_import.png',4,1),
+        (2,2,NULL,'Create Model','../assets/asset_model_edit.php','asset_model_create.png',4,1),
+        (2,1,NULL,'Models','../assets/asset_model_list.php','asset_model.png',4,0),
+        (2,2,NULL,'Import Models','../assets/asset_model_import.php','asset_model_import.png',4,1),
         (2,2,NULL,'Create Asset','../assets/asset_edit.php','asset_create.png',1,1),
         (2,1,NULL,'Assets','../assets/asset_list.php','asset.png',1,0),
         (2,2,NULL,'Import Assets','../assets/asset_import.php','asset_import.png',1,1),
@@ -509,6 +509,7 @@ INSERT INTO `shortcut` (`module_id`, `authorization_id`, `transaction_type_id`, 
         (2,2,3,'Check Out Assets','../assets/asset_edit.php?intTransactionTypeId=3', 'asset_checkout.png',1,0),
         (2,2,2,'Check In Assets','../assets/asset_edit.php?intTransactionTypeId=2', 'asset_checkin.png',1,0),
         (2,2,8,'Reserve Assets','../assets/asset_edit.php?intTransactionTypeId=8', 'asset_reserve.png',1,0),
+        (2,2,9,'Unreserve Assets','../assets/asset_edit.php?intTransactionTypeId=9', 'asset_reserve.png',1,0),
         (3,2,NULL,'Create Inventory','../inventory/inventory_edit.php','inventory_create.png',2,1),
         (3,1,NULL,'Inventory','../inventory/inventory_model_list.php','inventory.png',2,0),
         (3,2,1,'Move Inventory','../inventory/inventory_edit.php?intTransactionTypeId=1', 'inventory_move.png',2,0),
@@ -527,6 +528,7 @@ INSERT INTO `shortcut` (`module_id`, `authorization_id`, `transaction_type_id`, 
         (7,1,NULL,'Asset Audit Reports','../reports/asset_audit_list.php','receipt.png',1,0),
         (7,1,NULL,'Inventory Audit Reports','../reports/inventory_audit_list.php','receipt.png',2,0),
         (7,1,NULL,'Asset Transaction Report','../reports/asset_transaction_report.php','asset.png',1,0),
+        (7,1,NULL,'Inventory Location Report','../reports/inventory_location_report.php','inventory_move.png',2,0),
         (7,1,NULL,'Depreciation Report','../reports/depreciation_report.php','depreciation.png',1,0),
         (2,2,10,'Archive Assets','../assets/asset_edit.php?intTransactionTypeId=10','asset_archive.png',1,0),
         (2,2,11,'Unarchive Assets','../assets/asset_edit.php?intTransactionTypeId=11','asset_unarchive.png',1,0);

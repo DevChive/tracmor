@@ -179,7 +179,7 @@
 				
 				foreach ($objEntityQtypeCustomFieldArray as $objEntityQtypeCustomField) {
 					
-					$strEntity = EntityQtype::ToStringPrimaryKeySql($objEntityQtypeCustomField->EntityQtypeId);
+					//$strEntity = EntityQtype::ToStringPrimaryKeySql($objEntityQtypeCustomField->EntityQtypeId);
 					$arrHelperTable = CustomField::ToStringHelperTable($objEntityQtypeCustomField->EntityQtypeId);
 					
 					// This query returns entities which do not have a custom_field_selection for this specific Custom Field/Entity QType combination
@@ -190,10 +190,26 @@
 					WHERE custom_field_selection.custom_field_selection_id IS NULL"
 					, $strEntity, $strEntityTable, $this->CustomFieldId, $strEntity, $objEntityQtypeCustomField->EntityQtypeId);*/
 					
-					$strQuery = sprintf("
-					SELECT %s AS entity_id
-					FROM %s
-					WHERE cfv_%s IS NULL OR cfv_%s = ''", $arrHelperTable['strPrimaryKey'], $arrHelperTable['strHelperTable'], $this->CustomFieldId, $this->CustomFieldId);
+					if ($objEntityQtypeCustomField->EntityQtypeId === 1 && !$this->AllAssetModelsFlag) {
+						// This is an asset model specific custom field
+						$strQuery = sprintf('
+						SELECT %1$s.%2$s AS entity_id
+						FROM %1$s, asset_custom_field_asset_model, asset
+						WHERE (%1$s.cfv_%3$s IS NULL OR %1$s.cfv_%3$s = \'\')
+						AND asset_custom_field_asset_model.custom_field_id = %3$s
+						AND asset.asset_model_id = asset_custom_field_asset_model.asset_model_id
+						AND %1$s.asset_id = asset.asset_id
+						', 
+							$arrHelperTable['strHelperTable'], 
+							$arrHelperTable['strPrimaryKey'], 
+							$this->CustomFieldId
+							);	
+					} else {
+						$strQuery = sprintf("
+						SELECT %s AS entity_id
+						FROM %s
+						WHERE cfv_%s IS NULL OR cfv_%s = ''", $arrHelperTable['strPrimaryKey'], $arrHelperTable['strHelperTable'], $this->CustomFieldId, $this->CustomFieldId);
+					}
 					
 					$objDatabase = QApplication::$Database[1];
 					$objDbResult = $objDatabase->Query($strQuery);
@@ -613,7 +629,7 @@
 	 				// Create input for each custom field (either text or list)
 	 				// Create text inputs
 	 				if (CustomFieldQtype::ToString($objCustomFieldArray[$i]->CustomFieldQtypeId) == 'text' || CustomFieldQtype::ToString($objCustomFieldArray[$i]->CustomFieldQtypeId) == 'text area') {
-	 					$arrCustomFields[$i]['input'] = new QTextBox($objForm);
+	 					$arrCustomFields[$i]['input'] = new QTextBox($objForm, $blnSearch ? null: "cf".$objCustomFieldArray[$i]->CustomFieldId);
 	 					$arrCustomFields[$i]['input']->Name = $objCustomFieldArray[$i]->ShortDescription;
 	 					$arrCustomFields[$i]['input']->Required = false;
 	 					$arrCustomFields[$i]['input']->CausesValidation = true;
@@ -650,10 +666,10 @@
 	 				// Create list inputs
 	 				elseif (CustomFieldQtype::ToString($objCustomFieldArray[$i]->CustomFieldQtypeId) == 'select') {
 	 					
-						$arrCustomFields[$i]['input'] = new QListBox($objForm);
+						$arrCustomFields[$i]['input'] = new QListBox($objForm , $blnSearch ? null: "cf".$objCustomFieldArray[$i]->CustomFieldId);
 						$arrCustomFields[$i]['input']->Name = $objCustomFieldArray[$i]->ShortDescription;
-						$arrCustomFields[$i]['input']->Required = false;
-						
+            			$arrCustomFields[$i]['input']->Required = false;
+
 						$objCustomFieldValueArray = CustomFieldValue::LoadArrayByCustomFieldId($objCustomFieldArray[$i]->CustomFieldId, QQ::Clause(QQ::OrderBy(QQN::CustomFieldValue()->ShortDescription)));
 						if ($objCustomFieldValueArray) {
 						

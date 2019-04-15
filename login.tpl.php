@@ -19,106 +19,67 @@
 	 * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 	 */
 
+	$strPageTitle = 'Login | Tracmor';
 	include(__INCLUDES__ . '/header.inc.php');
 	$this->RenderBegin();
 ?>
 
-<table cellpadding="0" cellspacing="0" width="100%" style="background:url(<?php echo __IMAGE_ASSETS__ . '/main_header_bg.png'; ?>); background-repeat: repeat-x;">
-	<tr style="height:40px">
-		<td>
-			<table cellpadding="0" cellspacing="0">
-				<tr>
-					<td style="padding-left:15px;padding-top:16px;"><?php $this->lblLogo->Render(); ?></td>
-					<td style="padding-right:10px;text-align:right;" align="right" width="100%" valign="top"></td>
-				</tr>
-			</table>
-		</td>
-	</tr>
-	<tr>
-		<td>
-			<table cellpadding="0" cellspacing="0" style="width:100%;">
-				<tr style="height:24px">
-					<td style="width:15px;background-image: url(<?php echo __IMAGE_ASSETS__ . '/emptyTabSpace.gif'; ?>); background-repeat:repeat-x;"><img src=<?php echo __IMAGE_ASSETS__ . '/empty.gif'; ?> width="15" height="1"></td>
-						<!--echo(sprintf('<td class="%sleft"><img src="../images/empty.gif" width="12" height="1"></td>', $strTabClass));
-						echo(sprintf('<td class="%smiddle"><a href="%s" class="%slabel" border="0">%s</a></td>', $strTabClass, $link, $strTabClass, ucfirst($objRoleModule->Module->ShortDescription)));
-						echo(sprintf('<td class="%sright"><img src="../images/empty.gif" width="12" height="1"></td>', $strTabClass));
-						echo('<td class="empty_tab_space"><img src="../images/empty.gif" width="1" height="1"></td>');-->
-	
-					<td class="empty_tab_space" width="100%">&nbsp;</td>
-				</tr>
-			</table>
-		</td>	
-	</tr>
-	<tr style="height:20px;background-color:#acacac">
-		<td>
-			<table cellpadding="0" cellspacing="0">
-				<tr>
-					<td width="100%" style="padding-left:10px;font-family:arial;color:#FFFFFF;font-size:12px;font-weight:bold;">Welcome</td>
-					<td><img src="./images/searchSeparator.gif"></td><!--
-					<td style="padding-left:5;padding-right:5;font-family:arial;color:#FFFFFF;font-size:12;font-weight:bold;"></td>
-					<td style="padding-left:5;padding-right:5;"><input type="text" style="border:1px solid #000000;font-size:12;font-family:arial;"></td>
-					<td style="padding-right:15;"><input type="submit" value="Go" style="font-family:arial;font-size:12;font-weight:bold;"></td>-->
-				</tr>
-			</table>
-		</td>
-	</tr>
-	<tr style="height:1px;background-color:#000000;">
-		<td></td>
-	</tr>
-	<tr style="height:20px;background-color:#dddddd">
-		<td></td>
-	</tr>
-	<tr style="height:1px;background-color:#cccccc;">
-		<td></td>
-	</tr>
-</table>
+<div class="login_header">
+	<div class="login_logo"></div>
+</div>
 
 <table width="100%">
-	<tr height="300">
+	<tr height="360">
 		<td align="center">
 			<table align="center" width="300">
 				<tr>
-					<td style="text-align:center;"><img src="images/tracmor_logo.png"></td>
-				</tr>
-				<tr>
 					<td>
-						<table style="border:1px solid #AAAAAA;background-color:#eef2f6;padding:5px;" width="300">
+						<table style="border:1px solid #AAAAAA;background-color:#EEE;padding:16px;border-radius:4px;" width="300">
 							<tr>
 								<td>
-									<img src="./images/lock.png">
+									<div style="width:64px;height:64px;background-image:url(/images/key.png);"></div>
 								</td>
 								<td style="text-align:center;">
-									<table style="text-align:center;padding:8px">
+									<table style="text-align:center;padding:16px">
 										<tr style="height:40px;">
-											<td style="vertical-align:top;color:#615c5c;" class="item_label"><?php $this->lblMessage->Render(); ?></td>
+											<td style="vertical-align:top;color:#615c5c;white-space:nowrap;" class="item_label">Please enter your username & password.</td>
 										</tr>
-										<tr>
-											<td><?php $this->txtUsername->RenderDesignedNoRequired(); ?></td>
+										<tr style="height:32px;">
+											<td><?php $this->txtUsername->Render(); ?></td>
 										</tr>
-										<tr>
-											<td><?php $this->txtPassword->RenderDesignedNoRequired(); ?></td>
+										<tr style="height:32px;">
+											<td><?php $this->txtPassword->RenderWithError(); ?></td>
 										</tr>
-										<tr style="height:0;">
-											<td style="vertical-align:top;">
-												<table>
-													<tr>
-														<td width="66">&nbsp;</td>
-														<td><?php $this->btnLogin->Render(); ?></td>
-													</tr>
-												</table>
+										<tr style="height:32px;">
+											<td>
+												<?php $this->btnLogin->Render(); ?>
 											</td>
 										</tr>
 									</table>
 								</td>
 							</tr>
+							<tr>
+								<td colspan="2" style="text-align:center;">
+									<?php $this->lblForgotPassword->Render(); ?>
+									<table style="margin:auto;">
+										<tr>
+											<td style="vertical-align:top;"><?php $this->txtEmail->RenderWithError(); ?></td>
+											<td style="vertical-align:top;"><?php $this->btnRecoverPassword->Render();?></td>
+										</tr>
+									</table>
+								</td>
+							</tr>
 						</table>
-						<?php
-							// Warn if magic quotes are enabled
-							if (ini_get('magic_quotes_gpc') || ini_get('magic_quotes_runtime'))
-								printf('<br><font color="red" style="white-space:nowrap;"><b>WARNING:</b> magic_quotes_gpc and magic_quotes_runtime need to be disabled</font>');
-						?>
 					</td>
-				</tr>	
+				</tr>
+				<tr>
+				<td style="text-align:center;font-size:10px;">
+					<br/>
+					<a href="<?php _p(TOS_URL); ?>" style="color:#999;text-decoration:none;" target="_blank">Terms of service</a>
+					&nbsp;&nbsp;
+					<a href="<?php _p(PRIVACY_URL); ?>" style="color:#999;text-decoration:none;" target="_blank">Privacy</a>
+				</td>
+				</tr>
 			</table>
 		</td>
 	</tr>

@@ -2310,34 +2310,36 @@
 
 					}
 
+					// Create receipt transaction for internal shipment
+					if ($this->objShipment->ToCompanyId == $this->objShipment->FromCompanyId) {
+						$this->receiveInternalShipmentTransaction = new Transaction();
+						$this->receiveInternalShipmentTransaction->EntityQtypeId = $intEntityQtypeId;
+						$this->receiveInternalShipmentTransaction->TransactionTypeId = 7;
+						$note = sprintf('This receipt was automatically created when creating internal shipment Number %s. ',  $this->objShipment->ShipmentNumber);
+						$this->receiveInternalShipmentTransaction->Note = $note . $this->txtNote->Text;
+						$this->receiveInternalShipmentTransaction->Save();
+						// Create a new receipt
+						$objInternalReceipt = new Receipt();
+						$objInternalReceipt->TransactionId = $this->receiveInternalShipmentTransaction->TransactionId;
+						// The receipt will mimic the shipment information
+						$objInternalReceipt->FromCompanyId = $this->objShipment->FromCompanyId;
+						$objInternalReceipt->FromContactId = $this->objShipment->FromContactId;
+						$objInternalReceipt->ToContactId = $this->objShipment->ToContactId;
+						$objInternalReceipt->ToAddressId = $this->objShipment->ToAddressId;
+						$objInternalReceipt->ReceivedFlag = 0;
+						$objInternalReceipt->ReceiptNumber = Receipt::LoadNewReceiptNumber();
+						$objInternalReceipt->Save();
+					}
+
 					if ($intEntityQtypeId == EntityQtype::AssetInventory || $intEntityQtypeId == EntityQtype::Asset) {
 
 						$objTransaction = '';
 						$objReceipt = '';
-            $objNewAssetTransactionArray = array();
-            foreach ($this->objAssetTransactionArray as $objAssetTransaction) {
+            			$objNewAssetTransactionArray = array();
+						foreach ($this->objAssetTransactionArray as $objAssetTransaction) {
 							$objNewAssetTransactionArray[$objAssetTransaction->Asset->AssetCode] = $objAssetTransaction;
 						}
-            // Create receipt transaction for internal shipment
-            if($this->objShipment->ToCompanyId == $this->objShipment->FromCompanyId){
-              $this->receiveInternalShipmentTransaction = new Transaction();
-              $this->receiveInternalShipmentTransaction->EntityQtypeId = EntityQtype::Asset;
-              $this->receiveInternalShipmentTransaction->TransactionTypeId = 7;
-              $note = sprintf('This receipt was automatically created when creating internal shipment Number %s. ',  $this->objShipment->ShipmentNumber);
-              $this->receiveInternalShipmentTransaction->Note = $note . $this->txtNote->Text;
-              $this->receiveInternalShipmentTransaction->Save();
-              // Create a new receipt
-              $objInternalReceipt = new Receipt();
-              $objInternalReceipt->TransactionId = $this->receiveInternalShipmentTransaction->TransactionId;
-             // The receipt will mimic the shipment information
-              $objInternalReceipt->FromCompanyId = $this->objShipment->FromCompanyId;
-              $objInternalReceipt->FromContactId = $this->objShipment->FromContactId;
-              $objInternalReceipt->ToContactId = $this->objShipment->ToContactId;
-              $objInternalReceipt->ToAddressId = $this->objShipment->ToAddressId;
-              $objInternalReceipt->ReceivedFlag = 0;
-              $objInternalReceipt->ReceiptNumber = Receipt::LoadNewReceiptNumber();
-              $objInternalReceipt->Save();
-            }
+					
 						// Assign a destinationLocation to the AssetTransaction, and change the Location of the asset
 						foreach ($this->objAssetTransactionArray as $objAssetTransaction) {
 							if ($objAssetTransaction->Asset instanceof Asset) {
@@ -2463,26 +2465,25 @@
 									// Set the Receipt Asset Transaction as child of the Shipment Asset Transaction
 									$objAssetTransaction->AssociateChildAssetTransaction($objReceiptAssetTransaction);
 								}
-                if(($this->objShipment->ToCompanyId == $this->objShipment->FromCompanyId) && !$objAssetTransaction->Asset->LinkedFlag){
-                  $objReceiptAssetTransaction = new AssetTransaction();
+								if (($this->objShipment->ToCompanyId == $this->objShipment->FromCompanyId) && !$objAssetTransaction->Asset->LinkedFlag) {
+									$objReceiptAssetTransaction = new AssetTransaction();
 									$objReceiptAssetTransaction->AssetId = $objAssetTransaction->AssetId;
 									$objReceiptAssetTransaction->TransactionId = $this->receiveInternalShipmentTransaction->TransactionId;
-                  $objReceiptAssetTransaction->SourceLocationId = $objAssetTransaction->SourceLocationId;
-                  $objReceiptAssetTransaction->Save();
-                   // Load all child assets
+									$objReceiptAssetTransaction->SourceLocationId = $objAssetTransaction->SourceLocationId;
+									$objReceiptAssetTransaction->Save();
+									// Load all child assets
 									if ($objLinkedAssetCodeArray = Asset::LoadChildLinkedArrayByParentAssetId($objAssetTransaction->Asset->AssetId)) {
-									  foreach ($objLinkedAssetCodeArray as $objLinkedAssetCode) {
-									    $objLinkedAssetTransaction = $objNewAssetTransactionArray[$objLinkedAssetCode->AssetCode];
-									    $objLinkedReceiptAssetTransaction = new AssetTransaction();
-									    // add data to linked asset
-									    $objLinkedReceiptAssetTransaction->AssetId = $objLinkedAssetTransaction->AssetId;
-									    $objLinkedReceiptAssetTransaction->TransactionId = $this->receiveInternalShipmentTransaction->TransactionId;
-    									$objLinkedReceiptAssetTransaction->SourceLocationId = $objAssetTransaction->SourceLocationId;
-    									$objLinkedReceiptAssetTransaction->Save();
-
-									  }
+										foreach ($objLinkedAssetCodeArray as $objLinkedAssetCode) {
+											$objLinkedAssetTransaction = $objNewAssetTransactionArray[$objLinkedAssetCode->AssetCode];
+											$objLinkedReceiptAssetTransaction = new AssetTransaction();
+											// add data to linked asset
+											$objLinkedReceiptAssetTransaction->AssetId = $objLinkedAssetTransaction->AssetId;
+											$objLinkedReceiptAssetTransaction->TransactionId = $this->receiveInternalShipmentTransaction->TransactionId;
+											$objLinkedReceiptAssetTransaction->SourceLocationId = $objAssetTransaction->SourceLocationId;
+											$objLinkedReceiptAssetTransaction->Save();
+										}
 									}
-                }
+								}
 
 								$objReceipt = null;
 								$objTransaction = null;
@@ -2510,6 +2511,30 @@
 							// Finish the InventoryTransaction and save it
 							$objInventoryTransaction->DestinationLocationId = $DestinationLocationId;
 							$objInventoryTransaction->Save();
+
+							// Add Inventory to receipt if this is an internal shipment
+							if ($this->objShipment->ToCompanyId == $this->objShipment->FromCompanyId) {
+								$objReceiptInventoryLocation = InventoryLocation::LoadByLocationIdInventoryModelId(5, $objInventoryTransaction->InventoryLocation->InventoryModelId);
+								if (!$objReceiptInventoryLocation) {
+									// First create the inventory location if it doesn't exist
+									$objReceiptInventoryLocation = new InventoryLocation();
+									$objReceiptInventoryLocation->InventoryModelId = $objInventoryTransaction->InventoryLocation->InventoryModelId;
+									$objReceiptInventoryLocation->LocationId = 5;
+									$objReceiptInventoryLocation->Quantity = 0;
+								}
+
+								// Set the To Be Received quantity
+								$objReceiptInventoryLocation->Quantity += $objInventoryTransaction->Quantity;
+								$objReceiptInventoryLocation->Save();
+
+								// Create the inventory transaction
+								$objReceiptInventoryTransaction = new InventoryTransaction();
+								$objReceiptInventoryTransaction->TransactionId = $this->receiveInternalShipmentTransaction->TransactionId;
+								$objReceiptInventoryTransaction->InventoryLocationId = $objReceiptInventoryLocation->InventoryLocationId;
+								$objReceiptInventoryTransaction->Quantity = $objInventoryTransaction->Quantity;
+								$objReceiptInventoryTransaction->SourceLocationId = 5;
+								$objReceiptInventoryTransaction->Save();
+							}
 						}
 					}
 
@@ -2636,20 +2661,8 @@
 					}
 				}
 
-				// Set all 'Complete Shipment' information to null
-				// $this->objShipment->PackageTypeId = null;
-				// $this->objShipment->PackageWeight = null;
-				// $this->objShipment->WeightUnitId = null;
-				// $this->objShipment->PackageLength = null;
-				// $this->objShipment->PackageWidth = null;
-				// $this->objShipment->PackageHeight = null;
-				// $this->objShipment->LengthUnitId = null;
-				// $this->objShipment->Value = null;
-				// $this->objShipment->CurrencyUnitId = null;
-				// $this->objShipment->NotificationFlag = null;
-
 				// Set the TrackingNumber back to null
-				$this->objShipment->TrackingNumber = null;
+				//$this->objShipment->TrackingNumber = null;
 
 				// Set the shipment as pending
 				$this->objShipment->ShippedFlag = false;
@@ -3205,12 +3218,16 @@
 			$this->txtNewAssetCode->Display = false;
 			$this->btnAddAsset->Display = false;
 			$this->lblAddAsset->Display = false;
-			$this->btnLookup->Display = false;
-			$this->lblLookup->Display = false;
-			$this->btnAddInventory->Display = false;
-			$this->txtNewInventoryModelCode->Display = false;
-			$this->lstSourceLocation->Display = false;
-			$this->txtQuantity->Display = false;
+			
+			if ($this->blnShowInventory) {
+				$this->btnLookup->Display = false;
+				$this->lblLookup->Display = false;
+				$this->btnAddInventory->Display = false;
+				$this->txtNewInventoryModelCode->Display = false;
+				$this->lstSourceLocation->Display = false;
+				$this->txtQuantity->Display = false;
+			}
+			
 			$this->lblNewFromCompany->Display = false;
 			$this->lblNewFromContact->Display = false;
 			$this->lblNewFromAddress->Display = false;
@@ -3333,14 +3350,17 @@
 				//$this->lblAdvanced->Display = true;
 				$this->btnAddAsset->Display = true;
 				$this->lblAddAsset->Display = true;
-				$this->txtNewInventoryModelCode->Display = true;
-				$this->btnLookup->Display = true;
-				$this->lblLookup->Display = true;
-				$this->lstSourceLocation->Display = true;
-				$this->txtQuantity->Display = true;
-				$this->btnAddInventory->Display = true;
+				
+				if ($this->blnShowInventory) {
+					$this->txtNewInventoryModelCode->Display = true;
+					$this->btnLookup->Display = true;
+					$this->lblLookup->Display = true;
+					$this->lstSourceLocation->Display = true;
+					$this->txtQuantity->Display = true;
+					$this->btnAddInventory->Display = true;
+				}
 
-    			$this->lblNewFromCompany->Display = true;
+				$this->lblNewFromCompany->Display = true;
 				$this->lblNewFromContact->Display = true;
 				$this->lblNewFromAddress->Display = true;
 				$this->lblNewToCompany->Display = true;
@@ -3350,17 +3370,17 @@
 			}
 
 			if ($this->blnEditMode) {
-	    	$this->dtgAssetTransact->AddColumn(new QDataGridColumn('Action', '<?= $_FORM->RemoveAssetColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
-	    	$this->dtgInventoryTransact->AddColumn(new QDataGridColumn('Action', '<?= $_FORM->RemoveInventoryColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
-                if($this->lstFromCompany->SelectedValue!=$this->lstToCompany->SelectedValue){
-                    $this->dtgAssetTransact->AddColumn(new QDataGridColumn('Advanced', '<?= $_FORM->AdvancedColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
-                    $this->dtgAssetTransact->AddColumn(new QDataGridColumn('Due Date', '<?= $_FORM->DueDateColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
-                }
-            }
+				$this->dtgAssetTransact->AddColumn(new QDataGridColumn('Action', '<?= $_FORM->RemoveAssetColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
+				$this->dtgInventoryTransact->AddColumn(new QDataGridColumn('Action', '<?= $_FORM->RemoveInventoryColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
+				if ($this->lstFromCompany->SelectedValue!=$this->lstToCompany->SelectedValue) {
+					$this->dtgAssetTransact->AddColumn(new QDataGridColumn('Advanced', '<?= $_FORM->AdvancedColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
+					$this->dtgAssetTransact->AddColumn(new QDataGridColumn('Due Date', '<?= $_FORM->DueDateColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
+				}
+			}
 
 			// If the user is not authorized to edit built-in fields, the fields are render as labels.
 			// Also used if editing a completed shipment
-			if(!$this->blnEditBuiltInFields || $this->objShipment->ShippedFlag)
+			if (!$this->blnEditBuiltInFields || $this->objShipment->ShippedFlag)
 				$this->DisplayLabels();
 
 			$this->calShipDate->Display = true;
@@ -3378,9 +3398,9 @@
 			}
 
 			// Display custom field inputs
-	    if ($this->arrCustomFields) {
-	    	CustomField::DisplayInputs($this->arrCustomFields);
-	    }
+			if ($this->arrCustomFields) {
+				CustomField::DisplayInputs($this->arrCustomFields);
+			}
 		}
 
 		// This method is run when the company edit dialog box is closed
@@ -3409,126 +3429,124 @@
 			$this->lstToAddress_Select();
 			$this->CloseNewPanel($blnUpdates);
 		}
-	//Set display logic of the BuiltInFields in View Access and Edit Access
+		
+		//Set display logic of the BuiltInFields in View Access and Edit Access
 		protected function UpdateBuiltInFields() {
-		//Set View Display Logic of Built-In Fields
-		$objRoleEntityQtypeBuiltInAuthorization= RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId(QApplication::$objRoleModule->RoleId,EntityQtype::Shipment,1);
-		if($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag)
-			$this->blnViewBuiltInFields=true;
-		else
-			$this->blnViewBuiltInFields=false;
+			//Set View Display Logic of Built-In Fields
+			$objRoleEntityQtypeBuiltInAuthorization= RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId(QApplication::$objRoleModule->RoleId,EntityQtype::Shipment,1);
+			if ($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag) {
+				$this->blnViewBuiltInFields=true;
+			} else {
+				$this->blnViewBuiltInFields=false;
+			}
 
-		//Set Edit Display Logic of Built-In Fields
-		$objRoleEntityQtypeBuiltInAuthorization2= RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId(QApplication::$objRoleModule->RoleId,EntityQtype::Shipment,2);
-		if($objRoleEntityQtypeBuiltInAuthorization2 && $objRoleEntityQtypeBuiltInAuthorization2->AuthorizedFlag)
-			$this->blnEditBuiltInFields=true;
-		else
-			$this->blnEditBuiltInFields=false;
-
-
+			//Set Edit Display Logic of Built-In Fields
+			$objRoleEntityQtypeBuiltInAuthorization2= RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId(QApplication::$objRoleModule->RoleId,EntityQtype::Shipment,2);
+			if ($objRoleEntityQtypeBuiltInAuthorization2 && $objRoleEntityQtypeBuiltInAuthorization2->AuthorizedFlag) {
+				$this->blnEditBuiltInFields=true;
+			} else {
+				$this->blnEditBuiltInFields=false;
+			}
 		}
+
 		//Set display logic for the CustomFields
-		protected function UpdateCustomFields(){
-			if($this->arrCustomFields)foreach ($this->arrCustomFields as $objCustomField) {
+		protected function UpdateCustomFields() {
+			if ($this->arrCustomFields)foreach ($this->arrCustomFields as $objCustomField) {
 
 				//In Create Mode, if the role doesn't have edit access for the custom field and the custom field is required, the field shows as a label with the default value
-				if (!$this->blnEditMode && !$objCustomField['blnEdit'] && $objCustomField['blnRequired']){
-					if ($objCustomField['EditAuth']->EntityQtypeCustomField->CustomField->DefaultCustomFieldValue) $objCustomField['lbl']->Text=$objCustomField['EditAuth']->EntityQtypeCustomField->CustomField->DefaultCustomFieldValue->__toString();
+				if (!$this->blnEditMode && !$objCustomField['blnEdit'] && $objCustomField['blnRequired']) {
+					if ($objCustomField['EditAuth']->EntityQtypeCustomField->CustomField->DefaultCustomFieldValue) 
+						$objCustomField['lbl']->Text=$objCustomField['EditAuth']->EntityQtypeCustomField->CustomField->DefaultCustomFieldValue->__toString();
 					$objCustomField['lbl']->Display=true;
 					$objCustomField['input']->Display=false;
 				}
 			}
 
 		}
+
 		//Set display logic of the GreenPlusButton of Address
 		protected function UpdateAddressAccess() {
 			//checks if the entity has edit authorization
 			$objRoleEntityQtypeBuiltInAuthorization= RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId(QApplication::$objRoleModule->RoleId,EntityQtype::Address,2);
-			if($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag){
+			if ($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag) {
 				$this->lblNewFromAddress->Visible=true;
 				$this->lblNewToAddress->Visible=true;
-			}
-			else{
+			} else {
 				$this->lblNewFromAddress->Visible=false;
 				$this->lblNewToAddress->Visible=false;
 			}
-	
 		}
-			//Set display logic of the GreenPlusButton of Company
+
+		//Set display logic of the GreenPlusButton of Company
 		protected function UpdateCompanyAccess() {
 			//checks if the entity  has edit authorization
 			$objRoleEntityQtypeBuiltInAuthorization= RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId(QApplication::$objRoleModule->RoleId,EntityQtype::Company,2);
-			if($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag){
+			if ($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag) {
 				$this->lblNewFromCompany->Visible=true;
 				$this->lblNewToCompany->Visible=true;
-			}
-			else{
+			} else {
 				$this->lblNewFromCompany->Visible=false;
 				$this->lblNewToCompany->Visible=false;
 			}
-	
 		}
-			//Set display logic of the GreenPlusButton of Contact
+		
+		//Set display logic of the GreenPlusButton of Contact
 		protected function UpdateContactAccess() {
 			//checks if the entity  has edit authorization
 			$objRoleEntityQtypeBuiltInAuthorization= RoleEntityQtypeBuiltInAuthorization::LoadByRoleIdEntityQtypeIdAuthorizationId(QApplication::$objRoleModule->RoleId,EntityQtype::Contact,2);
-			if($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag){
+			if ($objRoleEntityQtypeBuiltInAuthorization && $objRoleEntityQtypeBuiltInAuthorization->AuthorizedFlag) {
 				$this->lblNewFromContact->Visible=true;
 				$this->lblNewToContact->Visible=true;
-			}
-			else{
+			} else {
 				$this->lblNewFromContact->Visible=false;
 				$this->lblNewToContact->Visible=false;
 			}
-	
 		}
 		
-	  protected function disableAdvancedIfInternal(){
-			if(!$this->lblFromCompany->Display){
+		protected function disableAdvancedIfInternal() {
+			if (!$this->lblFromCompany->Display) {
 	
-				if($this->lstToCompany->SelectedValue==$this->lstFromCompany->SelectedValue){
+				if ($this->lstToCompany->SelectedValue==$this->lstFromCompany->SelectedValue) {
 				
 					// switch off advansed parameters
 					if ($this->objAssetTransactionArray) {
 						$objNewAssetTransactionArray = array();
+						
 						foreach ($this->objAssetTransactionArray as $objAssetTransaction) {
 						  $objNewAssetTransactionArray[$objAssetTransaction->Asset->AssetCode] = $objAssetTransaction;
 						}
-					foreach ($this->objAssetTransactionArray as $objAssetTransaction) {
+						
+						foreach ($this->objAssetTransactionArray as $objAssetTransaction) {
 			
-						// set advansed to 'None'
+							// set advansed to 'None'
 							$objAssetTransaction->ScheduleReceiptFlag = false;
 							$objAssetTransaction->NewAssetFlag = false;
 							$objAssetTransaction->NewAssetId = null;
 							$objAssetTransaction->NewAsset = null;
-						              $objAssetTransaction->ScheduleReceiptDueDate = null;
+							$objAssetTransaction->ScheduleReceiptDueDate = null;
 						
 							if ($objLinkedAssetCodeArray = Asset::LoadChildLinkedArrayByParentAssetId($objAssetTransaction->Asset->AssetId)) {
-							  foreach ($objLinkedAssetCodeArray as $objLinkedAssetCode) {
-							    $objLinkedAssetTransaction = $objNewAssetTransactionArray[$objLinkedAssetCode->AssetCode];
-							    $objLinkedAssetTransaction->ScheduleReceiptFlag = false;
+								foreach ($objLinkedAssetCodeArray as $objLinkedAssetCode) {
+									$objLinkedAssetTransaction = $objNewAssetTransactionArray[$objLinkedAssetCode->AssetCode];
+									$objLinkedAssetTransaction->ScheduleReceiptFlag = false;
 									$objLinkedAssetTransaction->NewAssetFlag = false;
 									$objLinkedAssetTransaction->NewAssetId = null;
 									$objLinkedAssetTransaction->NewAsset = null;
-						                  $objLinkedAssetTransaction->ScheduleReceiptDueDate = null;
-							  }
+									$objLinkedAssetTransaction->ScheduleReceiptDueDate = null;
+								}
 							}
-						
-						// Return
-			
-	 				}
-	 				$this->blnModifyAssets = true;
-	 			}
-				//
-				$this->dtgAssetTransact->RemoveColumnByName('Advanced');
-				$this->dtgAssetTransact->RemoveColumnByName('Due Date');
-			}	
-			else {
-			    if(!$this->dtgAssetTransact->GetColumnByName('Advanced')){
-			       $this->dtgAssetTransact->AddColumn(new QDataGridColumn('Advanced', '<?= $_FORM->AdvancedColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
-			       $this->dtgAssetTransact->AddColumn(new QDataGridColumn('Due Date', '<?= $_FORM->DueDateColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
-				  }
-			 	}
+						}
+						$this->blnModifyAssets = true;
+					}
+
+					$this->dtgAssetTransact->RemoveColumnByName('Advanced');
+					$this->dtgAssetTransact->RemoveColumnByName('Due Date');
+				} else {
+					if (!$this->dtgAssetTransact->GetColumnByName('Advanced')) {
+						$this->dtgAssetTransact->AddColumn(new QDataGridColumn('Advanced', '<?= $_FORM->AdvancedColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
+						$this->dtgAssetTransact->AddColumn(new QDataGridColumn('Due Date', '<?= $_FORM->DueDateColumn_Render($_ITEM) ?>', array('CssClass' => "dtg_column", 'HtmlEntities' => false)));
+					}
+				}
 			}
 		}
 	}

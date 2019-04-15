@@ -116,7 +116,7 @@
         header('Content-Type: text/csv');
   			header('Content-Disposition: csv; filename=skipped_records.csv');
 
-        $file = fopen(sprintf("%s%s/%s_skipped.csv", __DOCROOT__ . __SUBDIRECTORY__, __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "r");
+        $file = fopen(sprintf("%s/%s_skipped.csv", __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "r");
         ob_end_clean();
         while ($row = fgets($file, 1000)) {
           print $row;
@@ -379,7 +379,7 @@
             // The uploaded file splits up in order to avoid out of memory
             while ($row = fgets($file, 1000)) {
               if ($j == 1) {
-                $strFilePath = sprintf('%s/%s_mod_%s.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId'], $i);
+                $strFilePath = sprintf('%s/%s_mod_%s.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId'], $i);
                 $this->strFilePathArray[] = $strFilePath;
                 $file_part = fopen($strFilePath, "w+");
                 if ($i == 1) {
@@ -408,7 +408,7 @@
               $this->arrTracmorField = array();
               // Load first file
               $this->FileCsvData->load($this->strFilePathArray[0]);
-              $file_skipped = fopen($this->strFilePath = sprintf('%s/%s_skipped.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "w+");
+              $file_skipped = fopen($this->strFilePath = sprintf('%s/%s_skipped.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "w+");
               // Get Headers
               if ($this->blnHeaderRow) {
                 $this->arrCsvHeader = $this->FileCsvData->getHeaders();
@@ -480,7 +480,7 @@
         for ($i=0; $i < count($this->lstMapHeaderArray)-1; $i++) {
           $lstMapHeader = $this->lstMapHeaderArray[$i];
           $strSelectedValue = strtolower($lstMapHeader->SelectedValue);
-          if ($strSelectedValue == "asset model short description") {
+          if ($strSelectedValue == "short description") {
             $blnAssetModelShortDescription = true;
           }
           elseif ($strSelectedValue == "model number") {
@@ -633,7 +633,7 @@
 		  else {
 		    // Step 3 complete
 		    set_time_limit(0);
-		    $file_skipped = fopen($strFilePath = sprintf('%s/%s_skipped.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "a");
+		    $file_skipped = fopen($strFilePath = sprintf('%s/%s_skipped.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "a");
 		    if (!$this->blnImportEnd) {
 		      // Asset Model
           if ($this->intImportStep == 2) {
@@ -658,10 +658,10 @@
             $arrModelCustomField = array();
             // Setup keys
             foreach ($this->arrTracmorField as $key => $value) {
-              if ($value == 'asset model short description') {
+              if ($value == 'short description') {
                 $intModelShortDescriptionKey = $key;
               }
-              elseif ($value == 'asset model long description') {
+              elseif ($value == 'long description') {
                 $intModelLongDescriptionKey = $key;
               }
               elseif ($value == 'model number') {
@@ -774,7 +774,7 @@
                 //$strShortDescription = (trim($strRowArray[$intModelShortDescriptionKey])) ? trim($strRowArray[$intModelShortDescriptionKey]) : false;
                 $strAssetModelCode = trim($strRowArray[$intModelCodeKey]) ? addslashes(trim($strRowArray[$intModelCodeKey])) : addslashes(trim($this->txtMapDefaultValueArray[$intModelCodeKey]->Text));
                 //$strAssetModelCode = trim($strRowArray[$intModelCodeKey]) ? trim($strRowArray[$intModelCodeKey]) : trim($this->txtMapDefaultValueArray[$intModelCodeKey]->Text);
-                $strKeyArray = array_keys($intCategoryArray, strtolower(trim($strRowArray[$this->intCategoryKey])));
+                $strKeyArray = array_keys($intCategoryArray, (isset($strRowArray[$this->intCategoryKey])) ? strtolower(trim($strRowArray[$this->intCategoryKey])) : array());
                 if (count($strKeyArray)) {
                   $intCategoryId = $strKeyArray[0];
                 }
@@ -787,7 +787,7 @@
                     $intCategoryId = false;
                   }
                 }
-                $strKeyArray = array_keys($intManufacturerArray, strtolower(trim($strRowArray[$this->intManufacturerKey])));
+                $strKeyArray = array_keys($intManufacturerArray, (isset($strRowArray[$this->intManufacturerKey])) ? strtolower(trim($strRowArray[$this->intManufacturerKey])) : array());
                 if (count($strKeyArray)) {
                   $intManufacturerId = $strKeyArray[0];
                 }
@@ -802,18 +802,22 @@
                 }
 
 				// depreciation
-				if(QApplication::$TracmorSettings->DepreciationFlag == '1'){
+				if(QApplication::$TracmorSettings->DepreciationFlag == '1' && $this->intDepreciationKey != null) {
 				  $strKeyArray = array_keys($intDepreciationClassArray, strtolower(trim($strRowArray[$this->intDepreciationKey])));
 				  if (count($strKeyArray)) {
 					  $intDepreciationId = $strKeyArray[0];
-				  }
-				  else {
+				  } else {
 					  $strKeyArray = array_keys($intDepreciationClassArray, strtolower(trim($this->txtMapDefaultValueArray[$this->intDepreciationKey]->Text)));
 					  if (count($strKeyArray)) {
 						  $intDepreciationId = $strKeyArray[0];
-					  }
-					  else {
-						  $intDepreciationId = false;
+					  } else {
+              if (trim($strRowArray[$this->intDepreciationKey]) == '') {
+						    // Depreciation class is blank, so null it out
+                $intDepreciationId = 'NULL';
+              } else {
+                // Depreciation class is invalid, so skip this record
+                $intDepreciationId = false;
+              }
 					  }
 				  }
 				}
@@ -822,13 +826,14 @@
 				}
 				//
                 $objAssetModel = false;
-                if (!$strShortDescription || $intCategoryId === false || $intManufacturerId === false) {
+                if (!$strShortDescription || $intCategoryId === false || $intManufacturerId === false || $intDepreciationId === false) {
                   //$blnError = true;
                   //echo sprintf("Desc: %s AssetCode: %s Cat: %s Man: %s<br/>", $strShortDescription, $strAssetModelCode, $intCategoryId, $intManufacturerId);
                   //break;
                   $strAssetModel =  null;
                   $this->intSkippedRecordCount++;
                   $this->PutSkippedRecordInFile($file_skipped, $strRowArray);
+                  continue;
                 }
                 else {
                   //$blnError = false;
@@ -900,7 +905,7 @@
                         $strAssetModelArray[] = $strAssetModel;
 
 						 // $this->strModelValuesArray[] = sprintf("('%s', '%s', '%s', '%s', '%s', '%s',  NOW())", $strShortDescription, (isset($intModelLongDescriptionKey)) ? addslashes(trim($strRowArray[$intModelLongDescriptionKey])) : null, $strAssetModelCode, $intCategoryId, $intManufacturerId, $_SESSION['intUserAccountId']);
-						  $this->strModelValuesArray[] = sprintf("('%s', '%s', '%s', '%s', '%s', '%s', NOW(), '%s')", $strShortDescription, (isset($intModelLongDescriptionKey)) ? addslashes(trim($strRowArray[$intModelLongDescriptionKey])) : null, $strAssetModelCode, $intCategoryId, $intManufacturerId ,$_SESSION['intUserAccountId'], $intDepreciationId?$intDepreciationId:'NULL');
+						  $this->strModelValuesArray[] = sprintf("('%s', '%s', '%s', '%s', '%s', '%s', NOW(), %s)", $strShortDescription, (isset($intModelLongDescriptionKey)) ? addslashes(trim($strRowArray[$intModelLongDescriptionKey])) : null, $strAssetModelCode, $intCategoryId, $intManufacturerId ,$_SESSION['intUserAccountId'], $intDepreciationId?$intDepreciationId:'NULL');
                         $objNewAssetModelArray[] = $strShortDescription;
                         if (isset($strCFVArray) && count($strCFVArray)) {
                           $strModelCFVArray[] = implode(', ', $strCFVArray);
@@ -923,7 +928,9 @@
                     $strUpdateFieldArray[] = sprintf("`category_id`='%s'", $intCategoryId);
                     $strUpdateFieldArray[] = sprintf("`short_description`='%s'", $strShortDescription);
                     $strUpdateFieldArray[] = sprintf("`asset_model_code`='%s'", $strAssetModelCode);
-					//$strUpdateFieldArray[] = sprintf("`depreciation_class_id = %s`", $intDepreciationId);
+					          
+                    if (QApplication::$TracmorSettings->DepreciationFlag == '1' && $this->intDepreciationKey != null && $intDepreciationId != null)
+                      $strUpdateFieldArray[] = sprintf("`depreciation_class_id` = %s", $intDepreciationId);
                     $strModelLongDescription = "";
                     if (isset($intModelLongDescription)) {
                       if (trim($strRowArray[$intModelLongDescriptionKey]))
@@ -1202,8 +1209,8 @@
 	      $lstMapHeader->AddItem("ID", "ID", ($strName == 'id') ? true : false, $strAssetModelGroup, 'CssClass="redtext"');
 	    }
 	    $lstMapHeader->AddItem("Model Number", "Model Number", ($strName == 'model number') ? true : false, $strAssetModelGroup, 'CssClass="redtext"');
-	    $lstMapHeader->AddItem("Asset Model Short Description", "Asset Model Short Description", ($strName == 'asset model short description') ? true : false, $strAssetModelGroup, 'CssClass="redtext"');
-	    $lstMapHeader->AddItem("Asset Model Long Description", "Asset Model Long Description", ($strName == 'asset model long description') ? true : false, $strAssetModelGroup);
+	    $lstMapHeader->AddItem("Short Description", "Short Description", ($strName == 'short description') ? true : false, $strAssetModelGroup, 'CssClass="redtext"');
+	    $lstMapHeader->AddItem("Long Description", "Long Description", ($strName == 'long description') ? true : false, $strAssetModelGroup);
 	    $lstMapHeader->AddItem("Category", "Category", ($strName == 'category') ? true : false, $strAssetModelGroup, 'CssClass="redtext"');
 	    $lstMapHeader->AddItem("Manufacturer", "Manufacturer", ($strName == 'manufacturer') ? true : false, $strAssetModelGroup, 'CssClass="redtext"');
 	    if(QApplication::$TracmorSettings->DepreciationFlag == '1'){

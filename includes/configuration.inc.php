@@ -60,6 +60,7 @@
 	define ('__JS_ASSETS__', __SUBDIRECTORY__ . '/js');
 	define ('__CSS_ASSETS__', __SUBDIRECTORY__ . '/css');
 	define ('__IMAGE_ASSETS__', __SUBDIRECTORY__ . '/images');
+	define ('__IMAGE_CACHE__', __IMAGE_ASSETS__ . '/cache');
 	define ('__PHP_ASSETS__', __SUBDIRECTORY__ . '/includes/php');
 
 	if ((function_exists('date_default_timezone_set')) && (!ini_get('date.timezone')))
@@ -82,5 +83,19 @@
 	DEFINE('AWS_PATH', ''); 	// Path in AWS_BUCKET to store Tracmor files, including leading slash. Example: /tracmor/files
 	
 	// Location of tmp directory
-	DEFINE('__TRACMOR_TMP__', '/tmp');
+	DEFINE('__TRACMOR_TMP__', __DOCROOT__ . __SUBDIRECTORY__ . '/tmp');
+
+	// SMTP configuration
+	define('SMTP_SERVER', '');
+	define('SMTP_PORT', 587);
+	define('SMTP_USERNAME', '');
+	define('SMTP_PASSWORD', '');
+
+	// Email settings
+	define('EMAIL_FROM_ADDRESS', '');
+	define('EMAIL_SIGNATURE', '');
+
+	// Terms of Service and Privacy Policy URLs
+	define('TOS_URL', '');
+	define('PRIVACY_URL', '');
 ?>

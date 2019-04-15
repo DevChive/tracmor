@@ -100,7 +100,7 @@
         header('Content-Type: text/csv');
   			header('Content-Disposition: csv; filename=skipped_records.csv');
 
-        $file = fopen(sprintf("%s%s/%s_manufacturer_skipped.csv", __DOCROOT__ . __SUBDIRECTORY__, __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "r");
+        $file = fopen(sprintf("%s/%s_manufacturer_skipped.csv", __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "r");
         ob_end_clean();
         while ($row = fgets($file, 1000)) {
           print $row;
@@ -333,7 +333,7 @@
             // The uploaded file splits up in order to avoid out of memory
             while ($row = fgets($file, 1000)) {
               if ($j == 1) {
-                $strFilePath = sprintf('%s/%s_man_%s.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId'], $i);
+                $strFilePath = sprintf('%s/%s_man_%s.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId'], $i);
                 $this->strFilePathArray[] = $strFilePath;
                 $file_part = fopen($strFilePath, "w+");
                 if ($i == 1) {
@@ -360,16 +360,11 @@
               }
             }
             $this->intTotalCount = ($i-1)*200 + $j-1;
-            if (true && QApplication::$TracmorSettings->AssetLimit != null && QApplication::$TracmorSettings->AssetLimit < ($this->intTotalCount + Asset::CountAll())) {
-              $blnError = true;
-              $this->btnNext->Warning = $i . " " . $j . "Sorry that is too many assets. Your asset limit is = " . QApplication::$TracmorSettings->AssetLimit . ", this import has " . ($this->intTotalCount) . " assets, and you already have " . Asset::CountAll() . " assets in the database.";
-            }
-            else {
               $this->arrMapFields = array();
               $this->arrTracmorField = array();
               // Load first file
               $this->FileCsvData->load($this->strFilePathArray[0]);
-              $file_skipped = fopen($this->strFilePath = sprintf('%s/%s_manufacturer_skipped.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "w+");
+              $file_skipped = fopen($this->strFilePath = sprintf('%s/%s_manufacturer_skipped.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "w+");
               // Get Headers
               if ($this->blnHeaderRow) {
                 $this->arrCsvHeader = $this->FileCsvData->getHeaders();
@@ -425,7 +420,7 @@
               $btnAddField->AddAction(new QEnterKeyEvent(), new QServerAction('btnAddField_Click'));
               $btnAddField->AddAction(new QEnterKeyEvent(), new QTerminateAction());
               $this->lstMapHeaderArray[] = $btnAddField;
-            }
+
     			}
 		    }
 		  }
@@ -581,7 +576,7 @@
 		  else {
 		    // Step 3 complete
 		    set_time_limit(0);
-		    $file_skipped = fopen($strFilePath = sprintf('%s/%s_manufacturer_skipped.csv', __DOCROOT__ . __SUBDIRECTORY__ . __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "a");
+		    $file_skipped = fopen($strFilePath = sprintf('%s/%s_manufacturer_skipped.csv', __TRACMOR_TMP__, $_SESSION['intUserAccountId']), "a");
 		    if (!$this->blnImportEnd) {
 		      if ($this->intImportStep == 2) {
             $strManufacturerArray = array();
@@ -926,8 +921,8 @@
 	    if ($this->lstImportAction->SelectedValue == 2) {
 	      $lstMapHeader->AddItem("ID", "ID", ($strName == 'id') ? true : false, $strManufactrerGroup, 'CssClass="redtext"');
 	    }
-	    $lstMapHeader->AddItem("manufacturer name", "manufacturer name", ($strName == 'manufacturer') ? true : false, $strManufactrerGroup, 'CssClass="redtext"');
-	    $lstMapHeader->AddItem("manufacturer description", "manufacturer description", ($strName == 'description') ? true : false, $strManufactrerGroup);
+	    $lstMapHeader->AddItem("Manufacturer Name", "manufacturer name", ($strName == 'manufacturer name') ? true : false, $strManufactrerGroup, 'CssClass="redtext"');
+	    $lstMapHeader->AddItem("Description", "manufacturer description", ($strName == 'description') ? true : false, $strManufactrerGroup);
 	    $lstMapHeader->AddAction(new QChangeEvent(), new QAjaxAction('lstTramorField_Change'));
 	    $this->lstMapHeaderArray[] = $lstMapHeader;
 	    foreach ($this->arrItemCustomField as $objCustomField) {
